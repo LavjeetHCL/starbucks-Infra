@@ -174,7 +174,7 @@ jobs:
     name: Terraform Deploy (${{ needs.detect-provider.outputs.provider }})
     needs: [detect-provider, tflint-scan, detect-secrets-scan]
     runs-on: ubuntu-latest
-    
+    environment: ${{ needs.detect-provider.outputs.environment }}
     env:
       ENVIRONMENT: ${{ needs.detect-provider.outputs.environment }}
       PROVIDER: ${{ needs.detect-provider.outputs.provider }}
