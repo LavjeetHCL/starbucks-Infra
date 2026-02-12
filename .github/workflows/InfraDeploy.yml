@@ -175,6 +175,7 @@ jobs:
     needs: [detect-provider, tflint-scan, detect-secrets-scan]
     runs-on: ubuntu-latest
     environment: ${{ needs.detect-provider.outputs.environment }}
+    
     env:
       ENVIRONMENT: ${{ needs.detect-provider.outputs.environment }}
       PROVIDER: ${{ needs.detect-provider.outputs.provider }}
@@ -197,7 +198,7 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          auth-type: OIDC
+      
 
       - name: Configure GCP OIDC
         if: needs.detect-provider.outputs.provider == 'gcp'
