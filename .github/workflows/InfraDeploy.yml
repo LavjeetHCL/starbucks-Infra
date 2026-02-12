@@ -310,4 +310,83 @@ jobs:
           skip_check: CKV_TF_1,CKV_AZURE_33,CKV2_AZURE_41,CKV2_AZURE_40,CKV2_AZURE_33,CKV2_AZURE_21,CKV2_AZURE_1
           download_external_modules: false
 
-            
+      - name: Comment PR with Plan
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const planPath = 'tf/environments/${{ env.ENVIRONMENT }}/plan.txt';
+
+            if (fs.existsSync(planPath)) {
+              const plan = fs.readFileSync(planPath, 'utf8');
+              const maxLength = 65000;
+              const planSummary = plan.length > maxLength
+                ? plan.substring(0, maxLength) + '\n\n... _Plan truncated. See artifacts for full plan._'
+                : plan;
+
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `## 📋 Terraform Plan - ${{ env.ENVIRONMENT }} (${{ env.PROVIDER }})\n\n\`\`\`terraform\n${planSummary}\n\`\`\``
+              });
+            }
+
+      - name: Terraform Apply (Azure)
+        if: |
+          needs.detect-provider.outputs.provider == 'azure' &&
+          (
+            (github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/qa' || github.ref == 'refs/heads/main')) ||
+            (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
+          )
+        working-directory: tf/environments/${{ env.ENVIRONMENT }}
+        env:
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          echo "🚀 Applying Terraform configuration..."
+          terraform apply -input=false -auto-approve tfplan
+
+      - name: Terraform Apply (GCP)
+        if: |
+          needs.detect-provider.outputs.provider == 'gcp' &&
+          (
+            (github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/qa' || github.ref == 'refs/heads/main')) ||
+            (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
+          )
+        working-directory: tf/environments/${{ env.ENVIRONMENT }}
+        env:
+          GOOGLE_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          echo "🚀 Applying Terraform configuration..."
+          terraform apply -input=false -auto-approve tfplan
+
+      - name: Terraform Output (Azure)
+        if: |
+          needs.detect-provider.outputs.provider == 'azure' &&
+          (
+            (github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/qa' || github.ref == 'refs/heads/main')) ||
+            (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
+          )
+        working-directory: tf/environments/${{ env.ENVIRONMENT }}
+        env:
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          echo "📤 Terraform Outputs:"
+          terraform output -json > outputs.json
+          terraform output
+
+      - name: Terraform Output (GCP)
+        if: |
+          needs.detect-provider.outputs.provider == 'gcp' &&
+          (
+            (github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/qa' || github.ref == 'refs/heads/main')) ||
+            (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
+          )
+        working-directory: tf/environments/${{ env.ENVIRONMENT }}
+        env:
+          GOOGLE_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          echo "📤 Terraform Outputs:"
+          terraform output -json > outputs.json
+          terraform output

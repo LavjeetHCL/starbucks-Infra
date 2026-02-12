@@ -6,7 +6,7 @@ account_replication_type          = "GRS"
 account_kind                      = "StorageV2"
 access_tier                       = "Hot"
 enable_containers                 = true
-public_network_access_enabled     =  false #true or false
+public_network_access_enabled     = false #true or false
 shared_access_key_enabled         = true
 infrastructure_encryption_enabled = true
 enable_file_shares                = true
@@ -15,7 +15,7 @@ min_tls_version                   = "TLS1_2"
 allow_nested_items_to_be_public   = false
 large_file_share_enabled          = false
 nfsv3_enabled                     = false
-https_traffic_only_enabled         = true
+https_traffic_only_enabled        = true
 local_user_enabled                = false
 
 file_shares = {
@@ -66,11 +66,11 @@ containers = {
 }
 
 tags = {
-  Environment    = "Dev"
-  Managed_By     = "platform-team"
-  ProductName    = "cih"
-  ProductGroup   = "product-factory"
-  
+  Environment  = "Dev"
+  Managed_By   = "platform-team"
+  ProductName  = "cih"
+  ProductGroup = "product-factory"
+
 
 }
 
