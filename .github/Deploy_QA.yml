@@ -1,0 +1,125 @@
+name: Deploy_QA
+
+on:
+  pull_request:
+    branches:
+      - qa
+  push:
+    branches:
+      - qa
+
+run-name: ${{ github.actor }}
+
+env:
+      ARM_USE_OIDC: true
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}   
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+# -------------------- Security Scan --------------------
+  tfsec-scan:
+    name: tfsec Security Scan (QA)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: ./environments/dev
+          soft_fail: false
+
+# -------------------- Terraform Plan --------------------
+  terraform-plan:
+    name: Terraform Plan (QA)
+    needs: tfsec-scan
+    runs-on: ubuntu-latest
+    environment: QA1
+    defaults:
+      run:
+        working-directory: ./environments/dev
+    
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: Azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      - name: Terraform Init
+        run: |          
+          terraform init \
+            -backend-config="resource_group_name=backend-qa" \
+            -backend-config="storage_account_name=backendstgukqa" \
+            -backend-config="container_name=tfstate" \
+            -backend-config="key=qa.tfstate"
+        
+
+      - name: Terraform Format Check
+        run: terraform fmt 
+        
+
+      - name: Terraform Validate
+        run: terraform validate
+        
+
+      - name: Terraform Plan
+        run: terraform plan -no-color
+        
+
+# -------------------- Terraform Apply --------------------
+  terraform-apply:
+    name: Terraform Apply (QA)
+    needs: terraform-plan
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/qa'
+    defaults:
+      run:
+        working-directory: ./environments/dev
+    environment:
+      name: QA  # QA approval required
+
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: Azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      - name: Terraform Init
+        run: |          
+          terraform init \
+            -backend-config="resource_group_name=backend-qa" \
+            -backend-config="storage_account_name=backendstgukqa" \
+            -backend-config="container_name=tfstate" \
+            -backend-config="key=qa.tfstate"
+        
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+        
+
+        
