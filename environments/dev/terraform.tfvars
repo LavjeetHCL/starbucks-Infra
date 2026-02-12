@@ -2,11 +2,11 @@ resource_group_name               = "bnlwe-CC01-PA03-rg"
 storage_account_name              = "bnlwestgunilever"
 location                          = "West Europe"
 account_tier                      = "Standard"
-account_replication_type          = "LRS"
+account_replication_type          = "GRS"
 account_kind                      = "StorageV2"
 access_tier                       = "Hot"
 enable_containers                 = true
-public_network_access_enabled     = true #false
+public_network_access_enabled     =  false #true or false
 shared_access_key_enabled         = true
 infrastructure_encryption_enabled = true
 enable_file_shares                = true
@@ -42,7 +42,7 @@ blob_properties = {
 
 ## network rules
 network_rules = {
-  default_action             = "Allow" # "Deny"
+  default_action             = "deny" # "allow" or "deny"
   bypass                     = ["AzureServices"]
   ip_rules                   = []
   virtual_network_subnet_ids = []
