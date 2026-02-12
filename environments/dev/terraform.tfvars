@@ -42,7 +42,7 @@ blob_properties = {
 
 ## network rules
 network_rules = {
-  default_action             = "deny" # "allow" or "deny"
+  default_action             = "allow" # "allow" or "deny"
   bypass                     = ["AzureServices"]
   ip_rules                   = []
   virtual_network_subnet_ids = []
