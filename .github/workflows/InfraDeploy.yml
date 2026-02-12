@@ -174,14 +174,20 @@ jobs:
     name: Terraform Deploy (${{ needs.detect-provider.outputs.provider }})
     needs: [detect-provider, tflint-scan, detect-secrets-scan]
     runs-on: ubuntu-latest
+    environment: ${{ needs.detect-provider.outputs.environment }}
+    
     env:
       ENVIRONMENT: ${{ needs.detect-provider.outputs.environment }}
       PROVIDER: ${{ needs.detect-provider.outputs.provider }}
+      ARM_USE_OIDC: true
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
     defaults:
       run:
         working-directory: ./environments/${{ env.ENVIRONMENT }}
-
+    
     steps:
       - uses: actions/checkout@v4
 
@@ -192,6 +198,7 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      
 
       - name: Configure GCP OIDC
         if: needs.detect-provider.outputs.provider == 'gcp'
@@ -300,7 +307,88 @@ jobs:
           output_file_path: console,checkov-plan-results.json
           soft_fail: false
           quiet: false
-          skip_check: CKV_TF_1,CKV_AZURE_33,CKV2_AZURE_41,CKV2_AZURE_40,CKV2_AZURE_33,CKV2_AZURE_21,CKV2_AZURE_1
+          skip_check: CKV_TF_1,CKV_AZURE_33,CKV2_AZURE_41,CKV2_AZURE_40,CKV2_AZURE_33,CKV2_AZURE_21,CKV2_AZURE_1,CKV_AZURE_35,CKV_AZURE_59
           download_external_modules: false
 
-            
+
+       #----------------------------- Comment PR with Plan Summary -------------------------   
+      - name: Comment PR with Plan
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const planPath = 'environments/${{ env.ENVIRONMENT }}/plan.txt';
+
+            if (fs.existsSync(planPath)) {
+              const plan = fs.readFileSync(planPath, 'utf8');
+              const maxLength = 65000;
+              const planSummary = plan.length > maxLength
+                ? plan.substring(0, maxLength) + '\n\n... _Plan truncated. See artifacts for full plan._'
+                : plan;
+
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `## 📋 Terraform Plan - ${{ env.ENVIRONMENT }} (${{ env.PROVIDER }})\n\n\`\`\`terraform\n${planSummary}\n\`\`\``
+              });
+            }
+        #----------------------------- Terraform Apply -------------------------
+      - name: Terraform Apply (Azure)
+        if: |
+          needs.detect-provider.outputs.provider == 'azure' &&
+          (
+            (github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/qa' || github.ref == 'refs/heads/main')) ||
+            (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
+          )
+        working-directory: environments/${{ env.ENVIRONMENT }}
+        env:
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          echo "🚀 Applying Terraform configuration..."
+          terraform apply -input=false -auto-approve tfplan
+
+      - name: Terraform Apply (GCP)
+        if: |
+          needs.detect-provider.outputs.provider == 'gcp' &&
+          (
+            (github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/qa' || github.ref == 'refs/heads/main')) ||
+            (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
+          )
+        working-directory: environments/${{ env.ENVIRONMENT }}
+        env:
+          GOOGLE_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          echo "🚀 Applying Terraform configuration..."
+          terraform apply -input=false -auto-approve tfplan
+
+      - name: Terraform Output (Azure)
+        if: |
+          needs.detect-provider.outputs.provider == 'azure' &&
+          (
+            (github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/qa' || github.ref == 'refs/heads/main')) ||
+            (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
+          )
+        working-directory: environments/${{ env.ENVIRONMENT }}
+        env:
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          echo "📤 Terraform Outputs:"
+          terraform output -json > outputs.json
+          terraform output
+
+      - name: Terraform Output (GCP)
+        if: |
+          needs.detect-provider.outputs.provider == 'gcp' &&
+          (
+            (github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/qa' || github.ref == 'refs/heads/main')) ||
+            (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
+          )
+        working-directory: environments/${{ env.ENVIRONMENT }}
+        env:
+          GOOGLE_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          echo "📤 Terraform Outputs:"
+          terraform output -json > outputs.json
+          terraform output

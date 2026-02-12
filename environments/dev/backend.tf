@@ -1,4 +1,4 @@
-#Terraform configuration for QA environment
+#Terraform configuration for Dev environment
 terraform {
   # Backend configuration (commented out for testing)
   backend "azurerm" {

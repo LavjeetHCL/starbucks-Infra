@@ -18,7 +18,7 @@ resource "azurerm_storage_account" "StorgaeAccount" {
   nfsv3_enabled             = var.nfsv3_enabled
   large_file_share_enabled  = var.large_file_share_enabled
   shared_access_key_enabled = var.shared_access_key_enabled
-
+  local_user_enabled = var.local_user_enabled
   dynamic "identity" {
     for_each = var.managed_identities != null ? [var.managed_identities] : []
     content {

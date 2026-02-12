@@ -1,5 +1,5 @@
 resource_group_name               = "bnlwe-CC01-PA03-rg"
-storage_account_name              = "bnlwestgunilever"
+storage_account_name              = "bnlwestgunileverprod"
 location                          = "West Europe"
 account_tier                      = "Standard"
 account_replication_type          = "GRS"
